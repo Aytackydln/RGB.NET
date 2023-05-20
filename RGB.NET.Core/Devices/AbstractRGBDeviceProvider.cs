@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Collections.ObjectModel;
 using System.Linq;
 
@@ -20,8 +21,13 @@ public abstract class AbstractRGBDeviceProvider : IRGBDeviceProvider
     /// <inheritdoc />
     public bool ThrowsExceptions { get; protected set; }
 
+    /// <summary>
+    /// The list of devices managed by this device-provider.
+    /// </summary>
+    protected List<IRGBDevice> InternalDevices { get; } = new();
+
     /// <inheritdoc />
-    public virtual IEnumerable<IRGBDevice> Devices { get; protected set; } = Enumerable.Empty<IRGBDevice>();
+    public virtual IReadOnlyList<IRGBDevice> Devices => new ReadOnlyCollection<IRGBDevice>(InternalDevices);
 
     /// <summary>
     /// Gets the dictionary containing the registered update triggers.
@@ -38,6 +44,12 @@ public abstract class AbstractRGBDeviceProvider : IRGBDeviceProvider
 
     /// <inheritdoc />
     public event EventHandler<ExceptionEventArgs>? Exception;
+
+    /// <inheritdoc />
+    public event EventHandler<RGBDeviceAddedEventArgs>? DeviceAdded; 
+
+    /// <inheritdoc />
+    public event EventHandler<RGBDeviceRemovedEventArgs>? DeviceRemoved; 
 
     #endregion
 
@@ -67,12 +79,15 @@ public abstract class AbstractRGBDeviceProvider : IRGBDeviceProvider
 
             InitializeSDK();
 
-            Devices = new ReadOnlyCollection<IRGBDevice>(GetLoadedDevices(loadFilter).ToList());
+            foreach (IRGBDevice rgbDevice in Devices) RemoveDevice(rgbDevice);
+            foreach (IRGBDevice device in GetLoadedDevices(loadFilter))
+                AddDevice(device);
 
             foreach (IDeviceUpdateTrigger updateTrigger in UpdateTriggerMapping.Values)
                 updateTrigger.Start();
 
             IsInitialized = true;
+            return true;
         }
         catch (DeviceProviderException)
         {
@@ -85,8 +100,6 @@ public abstract class AbstractRGBDeviceProvider : IRGBDeviceProvider
             Throw(ex, true);
             return false;
         }
-
-        return true;
     }
 
     /// <summary>
@@ -118,6 +131,19 @@ public abstract class AbstractRGBDeviceProvider : IRGBDeviceProvider
         return devices;
     }
 
+    protected void AddDevice(IRGBDevice device)
+    {
+        InternalDevices.Add(device);
+        DeviceAdded?.Invoke(this, new RGBDeviceAddedEventArgs(device));
+    }
+
+    protected void RemoveDevice(IRGBDevice device)
+    {
+        device.Dispose();
+        InternalDevices.Remove(device);
+        DeviceRemoved?.Invoke(this, new RGBDeviceRemovedEventArgs(device));
+    }
+
     /// <summary>
     /// Initializes the underlying SDK.
     /// </summary>
@@ -141,11 +167,15 @@ public abstract class AbstractRGBDeviceProvider : IRGBDeviceProvider
     /// <param name="id">The id of the update trigger.</param>
     /// <param name="updateRateHardLimit">The update rate hard limit to be set in the update trigger.</param>
     /// <returns>The update trigger mapped to the specified id.</returns>
-    protected virtual IDeviceUpdateTrigger GetUpdateTrigger(int id = -1, double? updateRateHardLimit = null)
+    protected virtual IDeviceUpdateTrigger GetUpdateTrigger(int id = -1, double? updateRateHardLimit = null, bool start = false)
     {
         if (!UpdateTriggerMapping.TryGetValue(id, out IDeviceUpdateTrigger? updaeTrigger))
             UpdateTriggerMapping[id] = (updaeTrigger = CreateUpdateTrigger(id, updateRateHardLimit ?? _defaultUpdateRateHardLimit));
 
+        if (start)
+        {
+            updaeTrigger.Start();
+        }
         return updaeTrigger;
     }
 
@@ -164,12 +194,13 @@ public abstract class AbstractRGBDeviceProvider : IRGBDeviceProvider
     {
         foreach (IDeviceUpdateTrigger updateTrigger in UpdateTriggerMapping.Values)
             updateTrigger.Dispose();
-
-        foreach (IRGBDevice device in Devices)
-            device.Dispose();
-
-        Devices = Enumerable.Empty<IRGBDevice>();
         UpdateTriggerMapping.Clear();
+
+        foreach (IRGBDevice rgbDevice in Devices.ToImmutableArray())
+        {
+            RemoveDevice(rgbDevice);
+        }
+
         IsInitialized = false;
     }
 

@@ -5,6 +5,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using HidSharp;
 using RGB.NET.Core;
 using RGB.NET.Devices.Razer.Native;
 using RGB.NET.HID;
@@ -242,6 +243,13 @@ public sealed class RazerDeviceProvider : AbstractRGBDeviceProvider
         RazerError error;
         if (((error = _RazerSDK.Init()) != RazerError.Success) && Enum.IsDefined(typeof(RazerError), error)) //HACK DarthAffe 08.02.2018: The x86-SDK seems to have a problem here ...
             ThrowRazerError(error, true);
+
+        DeviceList.Local.Changed += DeviceList_OnChanged;
+    }
+
+    private void DeviceList_OnChanged(object? sender, DeviceListChangedEventArgs e)
+    {
+        Console.WriteLine("H");
     }
 
     /// <inheritdoc />
@@ -302,6 +310,8 @@ public sealed class RazerDeviceProvider : AbstractRGBDeviceProvider
     public override void Dispose()
     {
         base.Dispose();
+
+        DeviceList.Local.Changed -= DeviceList_OnChanged;
 
         TryUnInit();
 

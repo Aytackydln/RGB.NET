@@ -51,11 +51,15 @@ internal static class _CUESDK
     private static void CorsairSessionStateChangedCallback(nint context, _CorsairSessionStateChanged eventData)
     {
         SessionState = eventData.state;
-        try
+        
+        foreach (Delegate @delegate in SessionStateChanged?.GetInvocationList()!)
         {
-            SessionStateChanged?.Invoke(null, eventData.state);
+            try
+            {
+                @delegate.DynamicInvoke(null, eventData.state);
+            }
+            catch { /* dont let exception go to sdk */ }
         }
-        catch { /* dont let exception go to sdk */ }
     }
 
     internal static void SubscribeToEvents()
@@ -70,19 +74,22 @@ internal static class _CUESDK
         {
             return;
         }
-
-        try
+        
+        
+        if (eventData.eventPointer == 0)
         {
-            if (eventData.eventPointer == 0)
+            return;
+        }
+        CorsairDeviceConnectionStatusChangedEvent connectionStatusChangedEvent =
+            Marshal.PtrToStructure<CorsairDeviceConnectionStatusChangedEvent>(eventData.eventPointer)!;
+        foreach (Delegate @delegate in DeviceConnectionEvent?.GetInvocationList()!)
+        {
+            try
             {
-                return;
+                @delegate.DynamicInvoke(null, connectionStatusChangedEvent);
             }
-
-            CorsairDeviceConnectionStatusChangedEvent connectionStatusChangedEvent =
-                Marshal.PtrToStructure<CorsairDeviceConnectionStatusChangedEvent>(eventData.eventPointer)!;
-
-            DeviceConnectionEvent?.Invoke(null, connectionStatusChangedEvent);
-        }catch { /* dont let exception go to sdk */ }
+            catch { /* dont let exception go to sdk */ }
+        }
     }
 
     internal static CorsairError CorsairConnect()

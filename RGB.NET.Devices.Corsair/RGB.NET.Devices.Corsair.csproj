@@ -60,4 +60,8 @@
   <ItemGroup>
     <ProjectReference Include="..\RGB.NET.Core\RGB.NET.Core.csproj" />
   </ItemGroup>
+
+  <ItemGroup>
+    <Compile Remove="Events\CorsairKeyEvent.cs" />
+  </ItemGroup>
 </Project>

@@ -61,7 +61,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\RGB.NET.Core\RGB.NET.Core.csproj" />
+    <ProjectReference Include="..\RGB.NET.Core\RGB.NET.Core.csproj" Private="true" />
   </ItemGroup>
 
 </Project>

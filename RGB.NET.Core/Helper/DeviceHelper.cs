@@ -22,5 +22,11 @@ public static class DeviceHelper
     [MethodImpl(MethodImplOptions.NoInlining)]
     public static string CreateDeviceName(string manufacturer, string model) => IdGenerator.MakeUnique(Assembly.GetCallingAssembly(), $"{manufacturer} {model}");
 
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    public static string CreateDeviceName(string manufacturer, string model, string sdkId)
+    {
+        return IdGenerator.MakeUnique(Assembly.GetCallingAssembly(), $"{manufacturer} {model}", sdkId);
+    }
+
     #endregion
 }

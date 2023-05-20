@@ -1,4 +1,7 @@
-﻿using RGB.NET.Core;
+﻿using System;
+using System.Security.Cryptography;
+using System.Text;
+using RGB.NET.Core;
 using OpenRGBDevice = OpenRGB.NET.Device;
 
 namespace RGB.NET.Devices.OpenRGB;
@@ -45,7 +48,9 @@ public class OpenRGBDeviceInfo : IRGBDeviceInfo
         DeviceType = Helper.GetRgbNetDeviceType(openRGBDevice.Type);
         Manufacturer = Helper.GetVendorName(openRGBDevice);
         Model = Helper.GetModelName(openRGBDevice);
-        DeviceName = DeviceHelper.CreateDeviceName(Manufacturer, Model);
+        string model = Manufacturer + " " + Model;
+        string id = string.IsNullOrWhiteSpace(openRGBDevice.Serial) ? openRGBDevice.Location : openRGBDevice.Serial;
+        DeviceName = model + " #" + Helper.HashAndShorten(id);
     }
 
     #endregion

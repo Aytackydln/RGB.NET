@@ -62,12 +62,12 @@ public class CorsairRGBDeviceInfo : IRGBDeviceInfo
     {
         this.DeviceType = deviceType;
         this.CorsairDeviceType = nativeInfo.type;
-        this.Model = nativeInfo.model == null ? string.Empty : Regex.Replace(nativeInfo.model ?? string.Empty, " ?DEMO", string.Empty, RegexOptions.IgnoreCase);
+        this.Model = nativeInfo.model == null ? string.Empty : Regex.Replace(nativeInfo.model, " ?DEMO", string.Empty, RegexOptions.IgnoreCase);
         this.DeviceId = nativeInfo.id ?? string.Empty;
         this.LedCount = ledCount;
         this.LedOffset = ledOffset;
 
-        DeviceName = DeviceHelper.CreateDeviceName(Manufacturer, Model);
+        DeviceName = DeviceHelper.CreateDeviceName(Manufacturer, Model, DeviceId);
     }
 
     /// <summary>
@@ -86,7 +86,7 @@ public class CorsairRGBDeviceInfo : IRGBDeviceInfo
         this.LedCount = ledCount;
         this.LedOffset = ledOffset;
 
-        DeviceName = DeviceHelper.CreateDeviceName(Manufacturer, Model);
+        DeviceName = DeviceHelper.CreateDeviceName(Manufacturer, Model, DeviceId);
     }
 
     #endregion

@@ -107,6 +107,7 @@ public sealed class CorsairDeviceProvider : AbstractRGBDeviceProvider
         {
             _CUESDK.SessionStateChanged += OnSessionStateChanged;
             _CUESDK.SessionStateChanged += OnInitializeSessionStateChanged;
+            _CUESDK.DeviceConnectionEvent += OnDeviceConnectionEvent;
 
             CorsairError errorCode = _CUESDK.CorsairConnect();
             if (errorCode != CorsairError.Success)
@@ -132,6 +133,28 @@ public sealed class CorsairDeviceProvider : AbstractRGBDeviceProvider
         }
     }
 
+    private void OnDeviceConnectionEvent(object? sender, CorsairDeviceConnectionStatusChangedEvent connectionStatusChangedEvent)
+    {
+        string? deviceId = connectionStatusChangedEvent.deviceId;
+        if (string.IsNullOrWhiteSpace(deviceId)) return;
+        if (connectionStatusChangedEvent.isConnected)
+        {
+            _CUESDK.CorsairGetDeviceInfo(deviceId, out _CorsairDeviceInfo deviceInfo);
+            IEnumerable<ICorsairRGBDevice> device = LoadDevice(deviceInfo);
+            foreach (ICorsairRGBDevice corsairRGBDevice in device)
+            {
+                corsairRGBDevice.Initialize();
+                AddDevice(corsairRGBDevice);
+            }
+        }
+        else
+        {
+            IRGBDevice? removedDevice = Devices.FirstOrDefault(device => ((ICorsairRGBDevice)device).DeviceId == deviceId);
+            if (removedDevice == null) return;
+            RemoveDevice(removedDevice);
+        }
+    }
+
     private void OnSessionStateChanged(object? sender, CorsairSessionState state)
     {
         SessionState = state;
@@ -140,20 +163,7 @@ public sealed class CorsairDeviceProvider : AbstractRGBDeviceProvider
     /// <inheritdoc />
     protected override IEnumerable<IRGBDevice> LoadDevices()
     {
-        foreach (ICorsairRGBDevice corsairDevice in LoadCorsairDevices().SelectMany(LoadDevice))
-        {
-            corsairDevice.Initialize();
-            yield return corsairDevice;
-        }
-    }
-
-    private IEnumerable<_CorsairDeviceInfo> LoadCorsairDevices()
-    {
-        CorsairError error = _CUESDK.CorsairGetDevices(new _CorsairDeviceFilter(CorsairDeviceType.All), out _CorsairDeviceInfo[] devices);
-        if (error != CorsairError.Success)
-            Throw(new RGBDeviceException($"Failed to load devices. (ErrorCode: {error})"));
-
-        return devices;
+        return ImmutableList<IRGBDevice>.Empty; //Devices will be populated by event
     }
 
     private IEnumerable<ICorsairRGBDevice> LoadDevice(_CorsairDeviceInfo device)
@@ -320,7 +330,7 @@ public sealed class CorsairDeviceProvider : AbstractRGBDeviceProvider
     /// <inheritdoc />
     public override void Dispose()
     { 
-        foreach (IRGBDevice internalDevice in Devices)
+        foreach (IRGBDevice internalDevice in InternalDevices)
         {
             internalDevice.Dispose();
         }
@@ -340,11 +350,7 @@ public sealed class CorsairDeviceProvider : AbstractRGBDeviceProvider
             CorsairError error = _CUESDK.CorsairDisconnect();
             if (error == CorsairError.Success)
             {
-                dcWaitEvent.Wait(new TimeSpan(0, 0, 3));
-            }
-            else
-            {
-                Console.WriteLine(" " + error);
+                dcWaitEvent.Wait(new TimeSpan(0, 0, 1));
             }
         }
         
